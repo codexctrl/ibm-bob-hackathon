@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  h1, h2, h3 {
+    font-family: 'Fraunces', serif;
+    color: #20241D;
+  }
+
+  :focus-visible {
+    outline: 2px solid #C89B3C;
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Signature "crop journey rail" progress tracker. Beads on a stem,
+     styled after a grain stalk rather than a generic step-wizard. */
+  .rail {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .rail-segment {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 84px;
+  }
+
+  .rail-line {
+    flex: 1;
+    height: 2px;
+    background: #D8CFB8;
+  }
+
+  .rail-line.filled {
+    background: #C89B3C;
+  }
+
+  .rail-bead {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid #D8CFB8;
+    background: #F7F4EC;
+    flex-shrink: 0;
+  }
+
+  .rail-bead.active {
+    border-color: #C89B3C;
+    background: #C89B3C;
+  }
+
+  .rail-bead.done {
+    border-color: #2F6B3F;
+    background: #2F6B3F;
+  }
+
+  .rail-bead.rejected {
+    border-color: #A63D2F;
+    background: #A63D2F;
+  }
+
+  .field-card {
+    background: #FFFFFF;
+    border: 1px solid #E4DCC8;
+    border-radius: 4px;
+  }
+
+  .field-divider {
+    border-top: 1px solid #E4DCC8;
+  }
+
+  .btn-primary {
+    background: #1F4D2C;
+    color: #F7F4EC;
+    padding: 0.75rem 1.25rem;
+    border-radius: 4px;
+    font-weight: 600;
+    transition: background-color 150ms ease;
+  }
+  .btn-primary:hover { background: #153A20; }
+  .btn-primary:disabled { background: #9CA894; cursor: not-allowed; }
+
+  .btn-secondary {
+    background: transparent;
+    color: #1F4D2C;
+    border: 1px solid #1F4D2C;
+    padding: 0.75rem 1.25rem;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  .btn-secondary:hover { background: #EEF3EC; }
+
+  .input-field {
+    width: 100%;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid #C9BF9F;
+    border-radius: 4px;
+    background: #FFFFFF;
+    font-size: 1rem;
+  }
+  .input-field:focus {
+    border-color: #1F4D2C;
+  }
+
+  .label {
+    font-size: 0.85rem;
+    color: #55503F;
+    margin-bottom: 0.25rem;
+    display: block;
+  }
+}
