@@ -23,7 +23,12 @@ export default function MyToken() {
     return () => clearInterval(interval);
   }, [load]);
 
-  if (error) return <div className="max-w-2xl mx-auto px-5 py-10 text-rust">{error}</div>;
+  if (error) return (
+    <div className="max-w-2xl mx-auto px-5 py-10 space-y-3">
+      <p className="text-rust">{error}</p>
+      <button onClick={load} className="btn-secondary text-sm py-2 px-4">Try again</button>
+    </div>
+  );
   if (!token) return <div className="max-w-2xl mx-auto px-5 py-10 text-[#55503F]">Loading token…</div>;
 
   const rejected = token.status === 'CANCELLED';

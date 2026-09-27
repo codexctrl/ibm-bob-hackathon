@@ -13,6 +13,7 @@ export default function BookSlot() {
   const [slots, setSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [crops, setCrops] = useState([]);
+  const [loadingCrops, setLoadingCrops] = useState(true);
   const [selectedCropId, setSelectedCropId] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -22,7 +23,10 @@ export default function BookSlot() {
       .then(setCentres)
       .catch((err) => setError(err.message))
       .finally(() => setLoadingCentres(false));
-    api.get(`/crops/farmer/${user.farmerId}`).then(setCrops).catch(() => {});
+    api.get(`/crops/farmer/${user.farmerId}`)
+      .then(setCrops)
+      .catch(() => {})
+      .finally(() => setLoadingCrops(false));
   }, [user.farmerId]);
 
   function selectCentre(centre) {
@@ -58,9 +62,10 @@ export default function BookSlot() {
     <div className="max-w-2xl mx-auto px-5 py-10 space-y-6">
       <h1 className="text-3xl font-semibold">Book a procurement slot</h1>
 
-      {crops.length === 0 && (
+      {!loadingCrops && crops.length === 0 && (
         <p className="text-sm text-rust">
-          You need to register a crop before booking a slot. Go to "My crops" first.
+          You need to register a crop before booking a slot. Go to{' '}
+          <a href="/my-crops" className="underline font-medium">My Crops</a> first.
         </p>
       )}
 

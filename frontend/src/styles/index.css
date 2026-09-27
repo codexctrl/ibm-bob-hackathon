@@ -16,25 +16,51 @@
 
 @layer components {
   /* Signature "crop journey rail" progress tracker. Beads on a stem,
-     styled after a grain stalk rather than a generic step-wizard. */
+     styled after a grain stalk rather than a generic step-wizard.
+     Mobile: wraps into a 4-column grid so all 7 stages are visible
+     without horizontal scrolling. Desktop (sm+): classic single row. */
   .rail {
-    display: flex;
-    align-items: center;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem 0;
     width: 100%;
-    overflow-x: auto;
+  }
+
+  /* On sm+ screens (≥640px) restore the horizontal single-row layout */
+  @media (min-width: 640px) {
+    .rail {
+      display: flex;
+      align-items: center;
+    }
   }
 
   .rail-segment {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    flex: 1;
-    min-width: 84px;
+    /* hide the connector line in grid mode — restored below for flex */
   }
 
+  @media (min-width: 640px) {
+    .rail-segment {
+      flex-direction: row;
+      flex: 1;
+      align-items: center;
+    }
+  }
+
+  /* Connector line — hidden in grid/mobile layout */
   .rail-line {
-    flex: 1;
+    display: none;
     height: 2px;
     background: #D8CFB8;
+  }
+
+  @media (min-width: 640px) {
+    .rail-line {
+      display: block;
+      flex: 1;
+    }
   }
 
   .rail-line.filled {
