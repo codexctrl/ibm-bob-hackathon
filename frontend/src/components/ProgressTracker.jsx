@@ -1,5 +1,6 @@
 const STAGES = [
   { key: 'WAITING', label: 'Arrival' },
+  { key: 'CALLED', label: 'Called' },
   { key: 'GATE_ENTERED', label: 'Gate' },
   { key: 'WEIGHING', label: 'Weighing' },
   { key: 'QUALITY_CHECK', label: 'Quality' },

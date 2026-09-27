@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import StatusBadge from '../components/StatusBadge';
@@ -6,19 +6,26 @@ import StatusBadge from '../components/StatusBadge';
 export default function MyCrops() {
   const { user } = useAuth();
   const [crops, setCrops] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ cropType: '', quantityBags: '', harvestDate: '' });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  function loadCrops() {
-    api.get(`/crops/farmer/${user.farmerId}`).then(setCrops).catch((err) => setError(err.message));
-  }
+  const loadCrops = useCallback(() => {
+    setLoading(true);
+    api.get(`/crops/farmer/${user.farmerId}`)
+      .then(setCrops)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [user.farmerId]);
 
-  useEffect(loadCrops, [user.farmerId]);
+  useEffect(loadCrops, [loadCrops]);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setSubmitting(true);
     try {
       await api.post('/crops', {
@@ -27,6 +34,7 @@ export default function MyCrops() {
         harvestDate: form.harvestDate || null
       });
       setForm({ cropType: '', quantityBags: '', harvestDate: '' });
+      setSuccess('Crop registered successfully.');
       loadCrops();
     } catch (err) {
       setError(err.message);
@@ -77,13 +85,15 @@ export default function MyCrops() {
           </div>
         </div>
         {error && <p className="text-rust text-sm">{error}</p>}
+        {success && <p className="text-growth text-sm font-medium">{success}</p>}
         <button type="submit" className="btn-primary" disabled={submitting}>
           {submitting ? 'Saving…' : 'Add crop'}
         </button>
       </form>
 
       <div className="field-card divide-y divide-[#E4DCC8]">
-        {crops.length === 0 && <p className="p-4 text-sm text-[#8A8468]">No crops registered yet.</p>}
+        {loading && <p className="p-4 text-sm text-[#8A8468]">Loading crops…</p>}
+        {!loading && crops.length === 0 && <p className="p-4 text-sm text-[#8A8468]">No crops registered yet.</p>}
         {crops.map((crop) => (
           <div key={crop.id} className="p-4 flex items-center justify-between">
             <div>

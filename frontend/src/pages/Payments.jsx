@@ -6,10 +6,14 @@ import StatusBadge from '../components/StatusBadge';
 export default function Payments() {
   const { user } = useAuth();
   const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get(`/payments/farmer/${user.farmerId}`).then(setPayments).catch((err) => setError(err.message));
+    api.get(`/payments/farmer/${user.farmerId}`)
+      .then(setPayments)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
   }, [user.farmerId]);
 
   return (
@@ -18,7 +22,8 @@ export default function Payments() {
       {error && <p className="text-rust text-sm">{error}</p>}
 
       <div className="field-card divide-y divide-[#E4DCC8]">
-        {payments.length === 0 && <p className="p-4 text-sm text-[#8A8468]">No payments yet.</p>}
+        {loading && <p className="p-4 text-sm text-[#8A8468]">Loading payments…</p>}
+        {!loading && payments.length === 0 && <p className="p-4 text-sm text-[#8A8468]">No payments yet.</p>}
         {payments.map((p) => (
           <div key={p.id} className="p-4 flex items-center justify-between flex-wrap gap-2">
             <div>

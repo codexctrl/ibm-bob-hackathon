@@ -8,22 +8,32 @@ export default function BookSlot() {
   const navigate = useNavigate();
 
   const [centres, setCentres] = useState([]);
+  const [loadingCentres, setLoadingCentres] = useState(true);
   const [selectedCentre, setSelectedCentre] = useState(null);
   const [slots, setSlots] = useState([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
   const [crops, setCrops] = useState([]);
   const [selectedCropId, setSelectedCropId] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    api.get('/centres').then(setCentres).catch((err) => setError(err.message));
+    api.get('/centres')
+      .then(setCentres)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoadingCentres(false));
     api.get(`/crops/farmer/${user.farmerId}`).then(setCrops).catch(() => {});
   }, [user.farmerId]);
 
   function selectCentre(centre) {
     setSelectedCentre(centre);
+    setSlots([]);
     setError('');
-    api.get(`/slots/centre/${centre.id}`).then(setSlots).catch((err) => setError(err.message));
+    setLoadingSlots(true);
+    api.get(`/slots/centre/${centre.id}`)
+      .then(setSlots)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoadingSlots(false));
   }
 
   async function bookAndIssueToken(slot) {
@@ -73,6 +83,7 @@ export default function BookSlot() {
 
       <div>
         <h2 className="font-semibold text-lg mb-3">1. Choose a centre</h2>
+        {loadingCentres && <p className="text-sm text-[#8A8468]">Loading centres…</p>}
         <div className="grid sm:grid-cols-2 gap-3">
           {centres.map((centre) => (
             <button
@@ -91,7 +102,8 @@ export default function BookSlot() {
         <div>
           <h2 className="font-semibold text-lg mb-3">2. Choose an available slot</h2>
           <div className="field-card divide-y divide-[#E4DCC8]">
-            {slots.length === 0 && <p className="p-4 text-sm text-[#8A8468]">No upcoming slots.</p>}
+            {loadingSlots && <p className="p-4 text-sm text-[#8A8468]">Loading slots…</p>}
+            {!loadingSlots && slots.length === 0 && <p className="p-4 text-sm text-[#8A8468]">No upcoming slots.</p>}
             {slots.map((slot) => {
               const full = slot.status === 'FULL' || slot.booked_count >= slot.capacity;
               return (

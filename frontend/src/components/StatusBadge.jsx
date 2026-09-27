@@ -14,7 +14,12 @@ const STATUS_STYLES = {
   REJECTED: 'bg-[#F3DCD7] text-[#7A2A1B]',
   PASSED: 'bg-[#DCEEDF] text-[#1D5A2E]',
   OPEN: 'bg-[#DCEEDF] text-[#1D5A2E]',
-  FULL: 'bg-[#F3DCD7] text-[#7A2A1B]'
+  FULL: 'bg-[#F3DCD7] text-[#7A2A1B]',
+  REGISTERED: 'bg-[#EAE6D8] text-[#55503F]',
+  ARRIVED: 'bg-[#F1E6C4] text-[#7A5C10]',
+  WEIGHED: 'bg-[#DCE8EF] text-[#274A5E]',
+  QUALITY_CHECKED: 'bg-[#DCE8EF] text-[#274A5E]',
+  PROCURED: 'bg-[#DCEEDF] text-[#1D5A2E]'
 };
 
 export default function StatusBadge({ status }) {

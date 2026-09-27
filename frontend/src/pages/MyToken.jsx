@@ -44,7 +44,7 @@ export default function MyToken() {
         <ProgressTracker status={token.status} rejected={rejected} />
       </section>
 
-      {queueStatus && token.status === 'WAITING' && (
+      {queueStatus && (token.status === 'WAITING' || token.status === 'CALLED') && (
         <section className="field-card p-6">
           <p className="font-semibold mb-3">Live queue</p>
           <div className="grid grid-cols-2 gap-4 text-sm">
