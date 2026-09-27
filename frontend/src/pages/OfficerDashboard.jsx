@@ -32,6 +32,10 @@ export default function OfficerDashboard() {
   const [qualityForm, setQualityForm] = useState({ qualityGrade: '', qualityStatus: 'PASSED' });
   const [approveForm, setApproveForm] = useState({ ratePerBag: '', decision: 'APPROVED' });
 
+  // AI rate suggestion state
+  const [rateSuggestion, setRateSuggestion] = useState(null);   // { advisory, rawText, reason, configured }
+  const [loadingSuggestion, setLoadingSuggestion] = useState(false);
+
   useEffect(() => {
     api.get('/centres').then((data) => {
       setCentres(data);
@@ -53,6 +57,16 @@ export default function OfficerDashboard() {
     const interval = setInterval(loadQueue, 10000);
     return () => clearInterval(interval);
   }, [loadQueue]);
+
+  function openApprovalForm(tokenId) {
+    setActiveTokenId(tokenId);
+    setRateSuggestion(null);
+    setLoadingSuggestion(true);
+    api.get(`/procurement/rate-suggestion?tokenId=${tokenId}`)
+      .then((data) => setRateSuggestion(data))
+      .catch(() => setRateSuggestion({ advisory: null, reason: 'AI suggestion unavailable', configured: false }))
+      .finally(() => setLoadingSuggestion(false));
+  }
 
   async function advanceStatus(token) {
     const next = NEXT_STATUS[token.status];
@@ -158,7 +172,7 @@ export default function OfficerDashboard() {
                   </button>
                 )}
                 {t.status === 'PROCUREMENT' && (
-                  <button className="btn-secondary text-xs py-1.5 px-3" onClick={() => setActiveTokenId(t.id)}>
+                  <button className="btn-secondary text-xs py-1.5 px-3" onClick={() => openApprovalForm(t.id)}>
                     Approve procurement
                   </button>
                 )}
@@ -206,28 +220,52 @@ export default function OfficerDashboard() {
             )}
 
             {activeTokenId === t.id && t.status === 'PROCUREMENT' && (
-              <div className="flex gap-3 items-end bg-[#F1EEE2] p-3 rounded flex-wrap">
-                <div>
-                  <label className="label">Rate per bag (₹)</label>
-                  <input
-                    className="input-field w-32"
-                    type="number"
-                    value={approveForm.ratePerBag}
-                    onChange={(e) => setApproveForm((f) => ({ ...f, ratePerBag: e.target.value }))}
-                  />
+              <div className="bg-[#F1EEE2] p-3 rounded space-y-3">
+                {/* AI advisory panel */}
+                <div className="text-xs text-[#55503F] border border-[#D8CFB8] rounded p-2 bg-white">
+                  <span className="font-semibold text-harvest">🤖 AI rate suggestion</span>
+                  {loadingSuggestion && <span className="ml-2 text-[#8A8468]">Fetching suggestion…</span>}
+                  {!loadingSuggestion && rateSuggestion && (
+                    rateSuggestion.advisory != null ? (
+                      <span className="ml-2">
+                        ₹{Number(rateSuggestion.advisory).toLocaleString('en-IN')}/bag
+                        <button
+                          className="ml-3 underline text-field font-medium"
+                          onClick={() => setApproveForm((f) => ({ ...f, ratePerBag: String(rateSuggestion.advisory) }))}
+                        >
+                          Use this rate
+                        </button>
+                        <span className="block mt-1 text-[#8A8468] italic">Advisory only — you must confirm the final rate below.</span>
+                      </span>
+                    ) : (
+                      <span className="ml-2 text-[#8A8468]">{rateSuggestion.reason || 'Unavailable'}</span>
+                    )
+                  )}
                 </div>
-                <div>
-                  <label className="label">Decision</label>
-                  <select
-                    className="input-field w-32"
-                    value={approveForm.decision}
-                    onChange={(e) => setApproveForm((f) => ({ ...f, decision: e.target.value }))}
-                  >
-                    <option value="APPROVED">Approve</option>
-                    <option value="REJECTED">Reject</option>
-                  </select>
+
+                <div className="flex gap-3 items-end flex-wrap">
+                  <div>
+                    <label className="label">Rate per bag (₹)</label>
+                    <input
+                      className="input-field w-32"
+                      type="number"
+                      value={approveForm.ratePerBag}
+                      onChange={(e) => setApproveForm((f) => ({ ...f, ratePerBag: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Decision</label>
+                    <select
+                      className="input-field w-32"
+                      value={approveForm.decision}
+                      onChange={(e) => setApproveForm((f) => ({ ...f, decision: e.target.value }))}
+                    >
+                      <option value="APPROVED">Approve</option>
+                      <option value="REJECTED">Reject</option>
+                    </select>
+                  </div>
+                  <button className="btn-primary text-sm" onClick={() => submitApproval(t.id)}>Confirm</button>
                 </div>
-                <button className="btn-primary text-sm" onClick={() => submitApproval(t.id)}>Confirm</button>
               </div>
             )}
           </div>
