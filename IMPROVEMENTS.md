@@ -1,24 +1,39 @@
-# CropFlow – Improvement Checklist
+# CropFlow – Testing and Improvement Checklist
 
-## 1. Booking
-- Fix outdated procurement slot dates.
-- Ensure future slots are available.
-- Test booking confirmation and token creation.
+## 1. Already Tested
 
-## 2. Token and Queue
-- Fix the mobile progress tracker overflow.
-- Test live queue updates.
-- Check token status changes.
+* [x] Farmer dashboard loads.
+* [x] Crop registration works and data persists after refresh.
+* [x] Navigation and logout work.
+* [x] Token and queue page loads.
+* [x] Payments page displays the empty state correctly.
+* [x] Mobile login, My Crops, Book Slot and Payments fit the screen.
+* [x] Frontend production build succeeds.
 
-## 3. Payments
-- Test payment history after procurement.
-- Verify payment details are displayed correctly.
+## 2. Changes Needed
 
-## 4. Mobile
-- Review the dashboard's mobile layout.
-- Keep the existing working layouts for My Crops, Book Slot and Payments.
+### Booking
 
-## 5. Backend
-- Review the seed.js changes.
-- Coordinate backend changes with the backend teammate.
-- Check booking and token creation for possible failures.
+* [ ] Fix outdated procurement slot dates.
+* [ ] Ensure future booking slots are available.
+* [ ] Test booking confirmation and token creation.
+
+### Token and Queue
+
+* [ ] Fix progress tracker overflow on mobile.
+* [ ] Test live queue updates.
+* [ ] Check token status changes.
+
+### Payments
+
+* [ ] Test payment history after procurement.
+* [ ] Verify payment details are displayed correctly.
+
+### Mobile
+
+* [ ] Review dashboard layout, including the token progress tracker.
+
+### Backend
+
+* [ ] Coordinate the seed.js changes with the backend teammate.
+* [ ] Check possible failures between booking and token creation.
