@@ -27,23 +27,74 @@ async function listPaymentsForFarmer(req, res) {
  */
 async function processPayment(req, res) {
   const { id } = req.params;
-  const { transactionReference } = req.body;
+  const { transactionReference } = req.body || {};
 
-  const result = await db.query(
-    `UPDATE payments SET status = 'PROCESSED', transaction_reference = $1, processed_at = NOW()
-     WHERE id = $2 RETURNING *`,
-    [transactionReference || `TXN-${Date.now()}`, id]
-  );
-  if (!result.rows[0]) return res.status(404).json({ error: 'Payment not found' });
+  const client = await db.getClient();
+  let inTransaction = false;
 
-  const payment = result.rows[0];
-  await notifyFarmer(
-    payment.farmer_id,
-    `Payment of Rs.${Number(payment.amount).toFixed(2)} has been processed. Reference: ${payment.transaction_reference}.`,
-    { channel: 'APP' }
-  );
+  try {
+    await client.query('BEGIN');
+    inTransaction = true;
 
-  return res.json(payment);
+    const paymentResult = await client.query(
+      `SELECT * FROM payments WHERE id = $1 FOR UPDATE`,
+      [id]
+    );
+
+    const payment = paymentResult.rows[0];
+
+    if (!payment) {
+      await client.query('ROLLBACK');
+      inTransaction = false;
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+
+    if (!['PENDING', 'INITIATED'].includes(payment.status)) {
+      await client.query('ROLLBACK');
+      inTransaction = false;
+      return res.status(409).json({
+        error: `Payment cannot be processed from status ${payment.status}`
+      });
+    }
+
+    const reference =
+      typeof transactionReference === 'string' &&
+      transactionReference.trim()
+        ? transactionReference.trim()
+        : `TXN-${Date.now()}`;
+
+    const result = await client.query(
+      `UPDATE payments
+       SET status = 'PROCESSED',
+           transaction_reference = $1,
+           processed_at = NOW()
+       WHERE id = $2
+       RETURNING *`,
+      [reference, id]
+    );
+
+    await client.query('COMMIT');
+    inTransaction = false;
+
+    try {
+      await notifyFarmer(
+        payment.farmer_id,
+        `Payment of Rs.${Number(payment.amount).toFixed(2)} has been processed. Reference: ${reference}.`,
+        { channel: 'APP' }
+      );
+    } catch (notificationError) {
+      console.error('Payment notification failed:', notificationError);
+    }
+
+    return res.json(result.rows[0]);
+  } catch (err) {
+    if (inTransaction) {
+      await client.query('ROLLBACK').catch(console.error);
+    }
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 module.exports = { listPaymentsForFarmer, processPayment };

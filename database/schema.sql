@@ -3,21 +3,58 @@
 -- IBM Bob 2.0 Hackathon
 -- Tracks a crop from arrival at a procurement centre to payment.
 -- Target: PostgreSQL 13+
+--
+-- Safe to re-run: CREATE TYPE uses DO $$ blocks, tables use
+-- IF NOT EXISTS, indexes use IF NOT EXISTS.
 -- ============================================================
 
-CREATE TYPE user_role AS ENUM ('farmer', 'operator', 'officer', 'admin');
-CREATE TYPE crop_status AS ENUM ('REGISTERED', 'ARRIVED', 'WEIGHED', 'QUALITY_CHECKED', 'PROCURED', 'REJECTED');
-CREATE TYPE slot_status AS ENUM ('OPEN', 'FULL', 'CLOSED', 'CANCELLED');
-CREATE TYPE token_status AS ENUM ('WAITING', 'CALLED', 'GATE_ENTERED', 'WEIGHING', 'QUALITY_CHECK', 'PROCUREMENT', 'COMPLETED', 'CANCELLED');
-CREATE TYPE quality_status AS ENUM ('PENDING', 'PASSED', 'FAILED');
-CREATE TYPE procurement_status AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
-CREATE TYPE payment_status AS ENUM ('PENDING', 'INITIATED', 'PROCESSED', 'FAILED');
-CREATE TYPE notification_channel AS ENUM ('APP', 'SMS');
+-- ------------------------------------------------------------
+-- ENUM types  (DO $$ guards make these idempotent)
+-- ------------------------------------------------------------
+DO $$ BEGIN
+  CREATE TYPE user_role AS ENUM ('farmer', 'operator', 'officer', 'admin');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE crop_status AS ENUM ('REGISTERED', 'ARRIVED', 'WEIGHED', 'QUALITY_CHECKED', 'PROCURED', 'REJECTED');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE slot_status AS ENUM ('OPEN', 'FULL', 'CLOSED', 'CANCELLED');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE token_status AS ENUM ('WAITING', 'CALLED', 'GATE_ENTERED', 'WEIGHING', 'QUALITY_CHECK', 'PROCUREMENT', 'COMPLETED', 'CANCELLED');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE quality_status AS ENUM ('PENDING', 'PASSED', 'FAILED');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE procurement_status AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE payment_status AS ENUM ('PENDING', 'INITIATED', 'PROCESSED', 'FAILED');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE notification_channel AS ENUM ('APP', 'SMS');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ------------------------------------------------------------
 -- Users & Farmers
 -- ------------------------------------------------------------
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id              SERIAL PRIMARY KEY,
     name            VARCHAR(120) NOT NULL,
     phone           VARCHAR(15) UNIQUE,
@@ -28,7 +65,7 @@ CREATE TABLE users (
     created_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE farmers (
+CREATE TABLE IF NOT EXISTS farmers (
     id              SERIAL PRIMARY KEY,
     user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     farmer_code     VARCHAR(20) UNIQUE NOT NULL,   -- e.g. CF100245
@@ -40,7 +77,7 @@ CREATE TABLE farmers (
 -- ------------------------------------------------------------
 -- Crops
 -- ------------------------------------------------------------
-CREATE TABLE crops (
+CREATE TABLE IF NOT EXISTS crops (
     id              SERIAL PRIMARY KEY,
     farmer_id       INTEGER NOT NULL REFERENCES farmers(id) ON DELETE CASCADE,
     crop_type       VARCHAR(60) NOT NULL,
@@ -53,7 +90,7 @@ CREATE TABLE crops (
 -- ------------------------------------------------------------
 -- Centres & Slots
 -- ------------------------------------------------------------
-CREATE TABLE centres (
+CREATE TABLE IF NOT EXISTS centres (
     id                SERIAL PRIMARY KEY,
     name              VARCHAR(120) NOT NULL,
     address           TEXT,
@@ -64,7 +101,7 @@ CREATE TABLE centres (
     avg_minutes_per_farmer NUMERIC(5,2) NOT NULL DEFAULT 4.0
 );
 
-CREATE TABLE slots (
+CREATE TABLE IF NOT EXISTS slots (
     id            SERIAL PRIMARY KEY,
     centre_id     INTEGER NOT NULL REFERENCES centres(id) ON DELETE CASCADE,
     slot_date     DATE NOT NULL,
@@ -79,7 +116,7 @@ CREATE TABLE slots (
 -- ------------------------------------------------------------
 -- Tokens (one per procurement visit)
 -- ------------------------------------------------------------
-CREATE TABLE tokens (
+CREATE TABLE IF NOT EXISTS tokens (
     id              SERIAL PRIMARY KEY,
     token_number    VARCHAR(20) UNIQUE NOT NULL,   -- e.g. CF45281
     farmer_id       INTEGER NOT NULL REFERENCES farmers(id) ON DELETE CASCADE,
@@ -95,7 +132,7 @@ CREATE TABLE tokens (
 -- ------------------------------------------------------------
 -- Procurement (gate -> weighing -> quality -> approval)
 -- ------------------------------------------------------------
-CREATE TABLE procurement (
+CREATE TABLE IF NOT EXISTS procurement (
     id                SERIAL PRIMARY KEY,
     token_id          INTEGER UNIQUE NOT NULL REFERENCES tokens(id) ON DELETE CASCADE,
     net_weight_kg     NUMERIC(8,2),
@@ -111,7 +148,7 @@ CREATE TABLE procurement (
 -- ------------------------------------------------------------
 -- Payments
 -- ------------------------------------------------------------
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
     id                    SERIAL PRIMARY KEY,
     farmer_id             INTEGER NOT NULL REFERENCES farmers(id) ON DELETE CASCADE,
     procurement_id        INTEGER UNIQUE NOT NULL REFERENCES procurement(id) ON DELETE CASCADE,
@@ -124,7 +161,7 @@ CREATE TABLE payments (
 -- ------------------------------------------------------------
 -- Notifications (app + SMS log)
 -- ------------------------------------------------------------
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
     id          SERIAL PRIMARY KEY,
     farmer_id   INTEGER NOT NULL REFERENCES farmers(id) ON DELETE CASCADE,
     channel     notification_channel NOT NULL DEFAULT 'APP',
@@ -136,7 +173,7 @@ CREATE TABLE notifications (
 -- ------------------------------------------------------------
 -- Audit log
 -- ------------------------------------------------------------
-CREATE TABLE audit_logs (
+CREATE TABLE IF NOT EXISTS audit_logs (
     id          SERIAL PRIMARY KEY,
     user_id     INTEGER REFERENCES users(id),
     action      VARCHAR(120) NOT NULL,
@@ -146,13 +183,13 @@ CREATE TABLE audit_logs (
 );
 
 -- ------------------------------------------------------------
--- Indexes
+-- Indexes (IF NOT EXISTS requires PG 9.5+, safe to re-run)
 -- ------------------------------------------------------------
-CREATE INDEX idx_farmers_farmer_code   ON farmers(farmer_code);
-CREATE INDEX idx_crops_farmer_id       ON crops(farmer_id);
-CREATE INDEX idx_slots_centre_date     ON slots(centre_id, slot_date);
-CREATE INDEX idx_tokens_slot_queue     ON tokens(slot_id, queue_position);
-CREATE INDEX idx_tokens_token_number   ON tokens(token_number);
-CREATE INDEX idx_tokens_status         ON tokens(status);
-CREATE INDEX idx_payments_farmer_status ON payments(farmer_id, status);
-CREATE INDEX idx_notifications_farmer  ON notifications(farmer_id, sent_at);
+CREATE INDEX IF NOT EXISTS idx_farmers_farmer_code    ON farmers(farmer_code);
+CREATE INDEX IF NOT EXISTS idx_crops_farmer_id        ON crops(farmer_id);
+CREATE INDEX IF NOT EXISTS idx_slots_centre_date      ON slots(centre_id, slot_date);
+CREATE INDEX IF NOT EXISTS idx_tokens_slot_queue      ON tokens(slot_id, queue_position);
+CREATE INDEX IF NOT EXISTS idx_tokens_token_number    ON tokens(token_number);
+CREATE INDEX IF NOT EXISTS idx_tokens_status          ON tokens(status);
+CREATE INDEX IF NOT EXISTS idx_payments_farmer_status ON payments(farmer_id, status);
+CREATE INDEX IF NOT EXISTS idx_notifications_farmer   ON notifications(farmer_id, sent_at);

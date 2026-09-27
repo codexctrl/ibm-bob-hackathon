@@ -70,24 +70,28 @@ export default function OperatorDashboard() {
   }
 
   async function bookForFarmer(slot) {
-    if (!selectedCropId) {
-      setError('Choose which crop this visit is for.');
-      return;
-    }
-    setError('');
-    setMessage('');
-    try {
-      await api.post('/slots/book', { slotId: slot.id });
-      const token = await api.post('/tokens', {
-        farmerId: selectedFarmer.id,
-        cropId: selectedCropId,
-        slotId: slot.id
-      });
-      setMessage(`Token ${token.token_number} issued. Print this slip for the farmer.`);
-    } catch (err) {
-      setError(err.message);
-    }
+  if (!selectedCropId) {
+    setError('Choose which crop this visit is for.');
+    return;
   }
+
+  setError('');
+  setMessage('');
+
+  try {
+    const token = await api.post('/slots/book', {
+      slotId: slot.id,
+      farmerId: Number(selectedFarmer.id),
+      cropId: Number(selectedCropId)
+    });
+
+    setMessage(
+      `Token ${token.token_number} issued. Print this slip for the farmer.`
+    );
+  } catch (err) {
+    setError(err.message);
+  }
+}
 
   return (
     <div className="max-w-3xl mx-auto px-5 py-10 space-y-8">

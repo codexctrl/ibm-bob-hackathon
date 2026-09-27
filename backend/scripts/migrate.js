@@ -2,6 +2,10 @@
  * Applies database/schema.sql and database/seed.sql (reference data
  * only) against the database configured in .env.
  * Usage: npm run migrate
+ *
+ * Safe to re-run: schema.sql guards every CREATE with IF NOT EXISTS /
+ * DO $$ EXCEPTION blocks; seed.sql uses ON CONFLICT DO NOTHING.
+ * No existing data is dropped or truncated.
  */
 require('dotenv').config();
 const fs = require('fs');
@@ -20,15 +24,18 @@ async function run() {
   await client.connect();
   console.log('Connected to database. Applying schema...');
 
-  const schemaSql = fs.readFileSync(path.join(__dirname, '../../database/schema.sql'), 'utf8');
-  await client.query(schemaSql);
-  console.log('Schema applied.');
+  try {
+    const schemaSql = fs.readFileSync(path.join(__dirname, '../../database/schema.sql'), 'utf8');
+    await client.query(schemaSql);
+    console.log('Schema applied.');
 
-  const seedSql = fs.readFileSync(path.join(__dirname, '../../database/seed.sql'), 'utf8');
-  await client.query(seedSql);
-  console.log('Reference data (centres, slots) seeded.');
+    const seedSql = fs.readFileSync(path.join(__dirname, '../../database/seed.sql'), 'utf8');
+    await client.query(seedSql);
+    console.log('Reference data (centres, slots) seeded.');
+  } finally {
+    await client.end();
+  }
 
-  await client.end();
   console.log('Done. Run "npm run seed" next to create demo users/farmers/tokens.');
 }
 

@@ -91,18 +91,40 @@ async function getToken(req, res) {
 }
 
 /**
- * Officer moves a token through the workflow:
- * WAITING -> CALLED -> GATE_ENTERED -> WEIGHING -> QUALITY_CHECK -> PROCUREMENT -> COMPLETED
- * (or CANCELLED at any point). Advancing a token also re-numbers the
- * queue positions behind it so everyone's live position stays accurate.
+ * Officer moves a token through the workflow via the officer dashboard
+ * "Advance" buttons:
+ *   WAITING → CALLED → GATE_ENTERED → WEIGHING
+ * (QUALITY_CHECK, PROCUREMENT and COMPLETED are set by the procurement
+ * controller; CANCELLED is always permitted from any active status.)
+ *
+ * Only the next legal transition is accepted. This prevents the API
+ * from being used to skip stages (e.g. WAITING → COMPLETED directly).
+ * Advancing also re-numbers the queue positions behind the token.
  */
 async function updateTokenStatus(req, res) {
   const { id } = req.params;
   const { status } = req.body;
-  const allowed = ['WAITING', 'CALLED', 'GATE_ENTERED', 'WEIGHING', 'QUALITY_CHECK', 'PROCUREMENT', 'COMPLETED', 'CANCELLED'];
 
-  if (!allowed.includes(status)) {
-    return res.status(400).json({ error: `status must be one of ${allowed.join(', ')}` });
+  // Statuses reachable via this endpoint (officer advance + cancel).
+  const ALLOWED_VIA_PATCH = ['CALLED', 'GATE_ENTERED', 'WEIGHING', 'CANCELLED'];
+
+  // Legal forward transitions: from → [allowed next statuses]
+  const VALID_TRANSITIONS = {
+    WAITING:      ['CALLED',       'CANCELLED'],
+    CALLED:       ['GATE_ENTERED', 'CANCELLED'],
+    GATE_ENTERED: ['WEIGHING',     'CANCELLED'],
+    // WEIGHING → QUALITY_CHECK is handled by procurement/weighing
+    // QUALITY_CHECK → PROCUREMENT is handled by procurement/quality
+    // PROCUREMENT → COMPLETED is handled by procurement/approve
+    WEIGHING:          ['CANCELLED'],
+    QUALITY_CHECK:     ['CANCELLED'],
+    PROCUREMENT:       ['CANCELLED']
+  };
+
+  if (!ALLOWED_VIA_PATCH.includes(status)) {
+    return res.status(400).json({
+      error: `status must be one of ${ALLOWED_VIA_PATCH.join(', ')} via this endpoint`
+    });
   }
 
   const client = await db.getClient();
@@ -116,12 +138,20 @@ async function updateTokenStatus(req, res) {
       return res.status(404).json({ error: 'Token not found' });
     }
 
+    const validNext = VALID_TRANSITIONS[token.status];
+    if (!validNext || !validNext.includes(status)) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: `Cannot transition from ${token.status} to ${status}`
+      });
+    }
+
     const updated = await client.query(
       `UPDATE tokens SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
       [status, id]
     );
 
-    if (status === 'COMPLETED' || status === 'CANCELLED') {
+    if (status === 'CANCELLED') {
       // Close the gap: shift everyone behind this token up by one position.
       await client.query(
         `UPDATE tokens SET queue_position = queue_position - 1
@@ -137,11 +167,16 @@ async function updateTokenStatus(req, res) {
 
     await client.query('COMMIT');
 
-    await notifyFarmer(
-      token.farmer_id,
-      `Token ${token.token_number}: status updated to ${status.replace('_', ' ')}.`,
-      { channel: 'APP' }
-    );
+    // replace(/_/g, ' ') fixes "QUALITY_CHECK" → "QUALITY CHECK" (global replace)
+    try {
+      await notifyFarmer(
+        token.farmer_id,
+        `Token ${token.token_number}: status updated to ${status.replace(/_/g, ' ')}.`,
+        { channel: 'APP' }
+      );
+    } catch (notificationError) {
+      console.error('Token status notification failed:', notificationError);
+    }
 
     return res.json(updated.rows[0]);
   } catch (err) {
@@ -152,4 +187,4 @@ async function updateTokenStatus(req, res) {
   }
 }
 
-module.exports = { issueToken, getToken, updateTokenStatus };
+module.exports = { getToken, updateTokenStatus };

@@ -8,10 +8,21 @@ const NEXT_STATUS = {
   GATE_ENTERED: 'WEIGHING'
 };
 
+/** Returns today's date as YYYY-MM-DD in local time (not UTC). */
+function localToday() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 export default function OfficerDashboard() {
   const [centres, setCentres] = useState([]);
   const [centreId, setCentreId] = useState('');
+  const [selectedDate, setSelectedDate] = useState(localToday);
   const [queue, setQueue] = useState([]);
+  const [loadingQueue, setLoadingQueue] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
@@ -30,8 +41,12 @@ export default function OfficerDashboard() {
 
   const loadQueue = useCallback(() => {
     if (!centreId) return;
-    api.get(`/queue/centre/${centreId}`).then(setQueue).catch((err) => setError(err.message));
-  }, [centreId]);
+    setLoadingQueue(true);
+    api.get(`/queue/centre/${centreId}?date=${selectedDate}`)
+      .then(setQueue)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoadingQueue(false));
+  }, [centreId, selectedDate]);
 
   useEffect(() => {
     loadQueue();
@@ -82,7 +97,6 @@ export default function OfficerDashboard() {
         ratePerBag: Number(approveForm.ratePerBag),
         decision: approveForm.decision
       });
-      await api.patch(`/tokens/${tokenId}/status`, { status: 'COMPLETED' });
       setMessage(`Procurement ${approveForm.decision.toLowerCase()}. Amount: ₹${Number(proc.approved_amount).toLocaleString('en-IN')}`);
       setActiveTokenId(null);
       loadQueue();
@@ -95,16 +109,30 @@ export default function OfficerDashboard() {
     <div className="max-w-4xl mx-auto px-5 py-10 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-3xl font-semibold">Procurement queue</h1>
-        <select className="input-field w-auto" value={centreId} onChange={(e) => setCentreId(e.target.value)}>
-          {centres.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
+        <div className="flex items-center gap-3 flex-wrap">
+          <select className="input-field w-auto" value={centreId} onChange={(e) => setCentreId(e.target.value)}>
+            {centres.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <input
+            type="date"
+            className="input-field w-auto"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            aria-label="Queue date"
+          />
+        </div>
       </div>
 
       {message && <p className="text-growth text-sm">{message}</p>}
       {error && <p className="text-rust text-sm">{error}</p>}
 
       <div className="field-card divide-y divide-[#E4DCC8]">
-        {queue.length === 0 && <p className="p-4 text-sm text-[#8A8468]">No active tokens for this centre today.</p>}
+        {loadingQueue && <p className="p-4 text-sm text-[#8A8468]">Loading queue…</p>}
+        {!loadingQueue && queue.length === 0 && (
+          <p className="p-4 text-sm text-[#8A8468]">
+            No active tokens for this centre on {selectedDate}.
+          </p>
+        )}
         {queue.map((t) => (
           <div key={t.id} className="p-4 space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
